@@ -1,0 +1,716 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>Cüzdanım</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,800&family=Figtree:wght@400;500;600;700&family=JetBrains+Mono:wght@500;700&display=swap">
+<style>
+/* Düzen: hesap defteri zemini (₺ ve ok deseni) üzerinde tek sütun; üstte özet, takvim + günün kayıtları, altta faturalar */
+:root{
+  --bg:#eef3f1; --paper:#fbfdfc; --ink:#14302b; --muted:#5a726c; --line:#d3e0dc;
+  --gelir:#16955a; --gelir-soft:#e1f4ea; --gider:#d23f3f; --gider-soft:#fbe6e4;
+  --fatura:#b97a06; --fatura-soft:#fbf0d9;
+  --accent:#1d5c50; --pattern-a:rgba(22,149,90,.10); --pattern-b:rgba(210,63,63,.09);
+  --f-display:"Bricolage Grotesque",Georgia,serif; --f-body:"Figtree",system-ui,sans-serif; --f-num:"JetBrains Mono",ui-monospace,monospace;
+}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){
+  --bg:#0e1a18; --paper:#15241f; --ink:#e3efeb; --muted:#93aaa3; --line:#28403a;
+  --gelir:#3ccb84; --gelir-soft:#163a29; --gider:#ff6b62; --gider-soft:#3d1c1a;
+  --fatura:#f2b84b; --fatura-soft:#382c12;
+  --accent:#7fd1bd; --pattern-a:rgba(60,203,132,.09); --pattern-b:rgba(255,107,98,.08); color-scheme:dark}}
+:root[data-theme="dark"]{
+  --bg:#0e1a18; --paper:#15241f; --ink:#e3efeb; --muted:#93aaa3; --line:#28403a;
+  --gelir:#3ccb84; --gelir-soft:#163a29; --gider:#ff6b62; --gider-soft:#3d1c1a;
+  --fatura:#f2b84b; --fatura-soft:#382c12;
+  --accent:#7fd1bd; --pattern-a:rgba(60,203,132,.09); --pattern-b:rgba(255,107,98,.08); color-scheme:dark}
+
+*{box-sizing:border-box}
+body{background:var(--bg);color:var(--ink);font-family:var(--f-body);font-size:15px;line-height:1.5;min-height:100vh;
+  padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:24px 48px;position:relative}
+#bgCanvas{position:fixed;inset:0;width:100%;height:100%;z-index:0;pointer-events:none}
+.wrap{position:relative;z-index:1;max-width:1040px;margin:0 auto}
+h1,h2,h3{font-family:var(--f-display);margin:0;text-wrap:balance;letter-spacing:-.01em}
+.num{font-family:var(--f-num);font-variant-numeric:tabular-nums}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+.label{font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:600}
+
+/* Giriş */
+.auth{min-height:calc(100vh - 72px);display:grid;place-items:center}
+.auth-card{width:100%;max-width:420px;background:var(--paper);border:1px solid var(--line);border-radius:18px;padding:28px;box-shadow:0 20px 50px -25px rgba(0,0,0,.35)}
+.brand{display:flex;align-items:center;gap:12px;margin-bottom:6px}
+.brand-mark{width:44px;height:44px;border-radius:12px;display:grid;place-items:center;background:linear-gradient(135deg,var(--gelir) 50%,var(--gider) 50%);color:#fff;font-family:var(--f-display);font-weight:800;font-size:22px;flex:none}
+.brand h1{font-size:28px;font-weight:800}
+.sub{color:var(--muted);margin:0 0 20px}
+.tabs{display:grid;grid-template-columns:1fr 1fr;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:20px}
+.tabs button{border:0;background:transparent;padding:10px;border-radius:9px;font-weight:600;color:var(--muted)}
+.tabs button[aria-selected="true"]{background:var(--paper);color:var(--ink);box-shadow:0 1px 3px rgba(0,0,0,.12)}
+form.stack,.stack{display:grid;gap:14px}
+.field{display:grid;gap:6px}
+.field label{font-weight:600;font-size:14px}
+.field input,.field select{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper)}
+.field input:focus,.field select:focus{border-color:var(--accent);outline:none}
+.check{display:flex;align-items:center;gap:10px;font-weight:600;font-size:14px}
+.check input{width:20px;height:20px;accent-color:var(--fatura)}
+.hint{font-size:13px;color:var(--muted)}
+.err{color:var(--gider);font-size:14px;font-weight:600;min-height:1em;margin:0}
+.btn{border:0;border-radius:12px;padding:13px 18px;font-weight:700;display:inline-flex;align-items:center;justify-content:center;gap:8px;transition:transform .08s, filter .15s}
+.btn:active{transform:translateY(1px)}
+.btn-main{background:var(--accent);color:var(--paper)}
+.btn-ghost{background:var(--paper);border:1.5px solid var(--line);color:var(--ink)}
+.btn-green{background:var(--gelir);color:#fff}
+.btn-red{background:var(--gider);color:#fff}
+.btn-amber{background:var(--fatura);color:#fff}
+.btn-sm{padding:8px 14px;font-size:14px;border-radius:10px}
+.btn:hover{filter:brightness(1.07)}
+.demo{margin-top:16px;text-align:center;font-size:14px;color:var(--muted)}
+.linkbtn{background:none;border:0;color:var(--accent);font-weight:700;text-decoration:underline;padding:0}
+
+/* Uygulama */
+.top{display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:12px;margin-bottom:20px}
+.top .brand h1{font-size:24px}
+.who{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.chip-btn{cursor:pointer}.chip-btn:hover{border-color:var(--accent)}
+.sect{border-top:1px dashed var(--line);padding-top:14px;display:grid;gap:12px}
+.sect h4{margin:0;font-size:15px}
+.ok-msg{color:var(--gelir);font-size:14px;font-weight:600;margin:0;min-height:1em}
+.danger{background:transparent;border:1.5px solid var(--gider);color:var(--gider)}
+.chip{background:var(--paper);border:1px solid var(--line);border-radius:999px;padding:6px 12px;font-size:13px;font-weight:600}
+.summary{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:20px}
+.tile{background:var(--paper);border:1px solid var(--line);border-radius:14px;padding:14px 16px;min-width:0}
+.tile .val{font-size:20px;font-weight:700;margin-top:4px;overflow-wrap:anywhere}
+.tile.g .val{color:var(--gelir)} .tile.r .val{color:var(--gider)}
+.bar{height:8px;border-radius:99px;background:var(--gelir-soft);margin-top:10px;overflow:hidden}
+.bar span{display:block;height:100%;background:var(--gider);border-radius:99px;transition:width .3s}
+.actions{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:20px}
+.actions .btn{padding:18px;font-size:17px;border-radius:14px}
+.actions .btn .sign{font-family:var(--f-num);font-size:24px;line-height:1}
+.main{display:grid;grid-template-columns:340px 1fr;gap:16px;align-items:start;margin-bottom:16px}
+.panel{background:var(--paper);border:1px solid var(--line);border-radius:16px;padding:16px;min-width:0}
+.cal-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px}
+.cal-head h2{font-size:18px}
+.icon-btn{width:36px;height:36px;border-radius:10px;border:1px solid var(--line);background:var(--paper);font-weight:700}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center}
+.cal .dow{font-size:11px;color:var(--muted);font-weight:700;padding:4px 0}
+.day{aspect-ratio:1;max-width:100%;border:1px solid transparent;border-radius:10px;background:transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:3px;font-variant-numeric:tabular-nums;font-weight:600;font-size:14px;padding:0}
+.day:hover{background:var(--bg)}
+.day.today{border-color:var(--line)}
+.day.sel{background:var(--ink);color:var(--paper)}
+.dots{display:flex;gap:3px;height:6px}
+.dots i{width:6px;height:6px;border-radius:50%}
+.dots .dg{background:var(--gelir)} .dots .dr{background:var(--gider)} .dots .db{background:var(--fatura);border-radius:1px}
+.legend{display:flex;flex-wrap:wrap;gap:12px;margin-top:10px;font-size:12px;color:var(--muted)}
+.legend span{display:inline-flex;align-items:center;gap:5px}
+.legend i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.date-pick{display:flex;gap:8px;margin-top:12px;align-items:center}
+.date-pick input{flex:1;min-width:0;padding:9px 10px;border:1.5px solid var(--line);border-radius:10px;background:var(--paper)}
+.day-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:baseline;gap:8px;margin-bottom:12px}
+.day-head h2{font-size:22px}
+.day-totals{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:14px}
+.dt{border-radius:12px;padding:10px 12px}
+.dt.g{background:var(--gelir-soft)} .dt.r{background:var(--gider-soft)} .dt.n{background:var(--bg)}
+.dt .v{font-weight:700;font-size:16px}
+.dt.g .v{color:var(--gelir)} .dt.r .v{color:var(--gider)}
+.due-note{background:var(--fatura-soft);border-radius:10px;padding:8px 12px;margin-bottom:12px;font-size:14px}
+.due-note b{color:var(--fatura)}
+.list{list-style:none;margin:0;padding:0;display:grid;gap:8px}
+.item{display:grid;grid-template-columns:6px 1fr auto auto;gap:12px;align-items:center;padding:10px 10px 10px 0;border-bottom:1px dashed var(--line)}
+.item .stripe{align-self:stretch;border-radius:3px}
+.item.gelir .stripe{background:var(--gelir)} .item.gider .stripe{background:var(--gider)} .item.fatura .stripe{background:var(--fatura)}
+.item .desc{min-width:0}
+.item .desc b{display:block;overflow-wrap:anywhere}
+.item .desc small{color:var(--muted)}
+.item .amt{font-weight:700;white-space:nowrap}
+.item.gelir .amt{color:var(--gelir)} .item.gider .amt{color:var(--gider)}
+.act{display:flex;gap:6px;align-items:center}
+.del{border:0;background:transparent;color:var(--muted);width:32px;height:32px;border-radius:8px;font-size:18px}
+.del:hover{background:var(--gider-soft);color:var(--gider)}
+.empty{text-align:center;padding:28px 12px;color:var(--muted)}
+.empty b{display:block;color:var(--ink);font-size:16px;margin-bottom:4px}
+.pill{display:inline-block;font-size:12px;font-weight:700;border-radius:999px;padding:2px 9px;margin-left:6px;vertical-align:1px}
+.pill.ok{background:var(--gelir-soft);color:var(--gelir)}
+.pill.late{background:var(--gider-soft);color:var(--gider)}
+.pill.soon{background:var(--fatura-soft);color:var(--fatura)}
+.pill.wait{background:var(--bg);color:var(--muted)}
+.pay{border:0;border-radius:8px;padding:7px 12px;font-weight:700;font-size:13px;background:var(--fatura);color:#fff}
+.undo{border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-weight:600;font-size:13px;background:var(--paper)}
+.bill-totals{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px}
+.bill-totals .chip b{font-family:var(--f-num)}
+
+/* Pencereler */
+.overlay{position:fixed;inset:0;background:rgba(10,20,18,.55);display:grid;place-items:center;z-index:20;overflow-y:auto;
+  padding:16px max(16px,env(safe-area-inset-right,0px)) 16px max(16px,env(safe-area-inset-left,0px))}
+.modal{width:100%;max-width:440px;background:var(--paper);border-radius:18px;padding:22px;border-top:8px solid var(--accent)}
+.modal.gelir{border-top-color:var(--gelir)} .modal.gider{border-top-color:var(--gider)} .modal.fatura{border-top-color:var(--fatura)}
+.modal h3{font-size:22px}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.steps{margin:0;padding-left:22px;display:grid;gap:8px}
+.steps li::marker{font-family:var(--f-num);font-weight:700;color:var(--accent)}
+.key{display:inline-block;border:1px solid var(--line);border-radius:6px;padding:0 6px;font-weight:700;background:var(--bg)}
+.phone-note{background:var(--bg);border-radius:10px;padding:10px 12px;font-size:13px;color:var(--muted)}
+.toast{position:fixed;left:50%;bottom:calc(20px + env(safe-area-inset-bottom,0px));transform:translateX(-50%);background:var(--ink);color:var(--paper);padding:10px 16px;border-radius:10px;font-weight:600;z-index:30;max-width:calc(100% - 32px)}
+.confirm{display:flex;gap:6px}
+.confirm button{border:0;border-radius:8px;padding:6px 10px;font-size:13px;font-weight:700}
+.confirm .yes{background:var(--gider);color:#fff} .confirm .no{background:var(--bg)}
+
+@media (max-width:860px){.main{grid-template-columns:1fr}.summary{grid-template-columns:repeat(2,1fr)}}
+@media (max-width:600px){.actions{grid-template-columns:1fr 1fr}.actions #addFatura{grid-column:span 2}
+  .item{grid-template-columns:6px 1fr auto}.item .act{grid-column:2 / -1;justify-content:flex-end}}
+@media (max-width:420px){.day-totals{grid-template-columns:1fr}.row2{grid-template-columns:1fr}.actions .btn{font-size:15px;padding:16px 10px}}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+<canvas id="bgCanvas" aria-hidden="true"></canvas>
+<div class="wrap">
+
+  <!-- GİRİŞ / KAYIT -->
+  <section id="authView" class="auth">
+    <div class="auth-card">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 6 15.6 2.9a1.5 1.5 0 0 1 1.9 1.4V6"/><rect x="2.5" y="6" width="19" height="14" rx="2.6"/><path d="M21.5 10.5h-4.2a2.5 2.5 0 0 0 0 5h4.2"/><circle cx="17.4" cy="13" r="1" fill="#fff" stroke="none"/></svg></div><h1>Cüzdanım</h1></div>
+      <p class="sub">Gelirini, giderini ve faturalarını gün gün takip et.</p>
+      <div class="tabs" role="tablist">
+        <button id="tabLogin" role="tab" aria-selected="true">Giriş Yap</button>
+        <button id="tabReg" role="tab" aria-selected="false">Kayıt Ol</button>
+      </div>
+
+      <form id="loginForm" class="stack" novalidate>
+        <div class="field"><label for="lUser">Kullanıcı adı</label><input id="lUser" autocomplete="username" required></div>
+        <div class="field"><label for="lPass">Şifre</label><input id="lPass" type="password" autocomplete="current-password" required></div>
+        <p class="err" id="lErr"></p>
+        <button class="btn btn-main" type="submit">Giriş Yap</button>
+      </form>
+
+      <form id="regForm" class="stack" novalidate hidden>
+        <div class="field"><label for="rUser">Kullanıcı adı</label><input id="rUser" autocomplete="username" required></div>
+        <div class="field"><label for="rPass">Şifre</label><input id="rPass" type="password" autocomplete="new-password" required><span class="hint">En az 4 karakter</span></div>
+        <div class="field"><label for="rPurpose">Bu uygulamayı hangi amaçla kullanacaksın?</label>
+          <select id="rPurpose" required>
+            <option value="">Seç…</option>
+            <option>Kişisel bütçe</option>
+            <option>Ev ve aile bütçesi</option>
+            <option>Öğrenci harçlığı</option>
+            <option>Küçük işletme / esnaf</option>
+            <option>Birikim yapmak</option>
+            <option>Diğer</option>
+          </select></div>
+        <div class="field"><label for="rIncome">Aylık gelirin (₺)</label><input id="rIncome" type="number" inputmode="decimal" min="0" step="0.01" placeholder="örn. 25000" required></div>
+        <p class="err" id="rErr"></p>
+        <button class="btn btn-main" type="submit">Kayıt Ol</button>
+      </form>
+
+      <p class="demo">Önce denemek ister misin? <button class="linkbtn" id="demoBtn" type="button">Örnek hesapla gir</button></p>
+      <p class="demo" style="margin-top:6px">📱 <button class="linkbtn" id="phoneBtn1" type="button">Telefonuma nasıl eklerim?</button></p>
+    </div>
+  </section>
+
+  <!-- UYGULAMA -->
+  <section id="appView" hidden>
+    <header class="top">
+      <div class="brand"><div class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="#fff" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5.5 6 15.6 2.9a1.5 1.5 0 0 1 1.9 1.4V6"/><rect x="2.5" y="6" width="19" height="14" rx="2.6"/><path d="M21.5 10.5h-4.2a2.5 2.5 0 0 0 0 5h4.2"/><circle cx="17.4" cy="13" r="1" fill="#fff" stroke="none"/></svg></div><h1>Cüzdanım</h1></div>
+      <div class="who">
+        <button class="chip chip-btn" id="whoName" title="Profili düzenle"></button>
+        <span class="chip" id="whoPurpose"></span>
+        <button class="btn btn-ghost btn-sm" id="profileBtn">✏️ Profili Düzenle</button>
+        <button class="btn btn-ghost btn-sm" id="phoneBtn2">📱 Telefona Ekle</button>
+        <button class="btn btn-ghost btn-sm" id="logoutBtn">Çıkış</button>
+      </div>
+    </header>
+
+    <div class="summary">
+      <div class="tile"><div class="label">Aylık gelir (beyan)</div><div class="val num" id="sIncome"></div></div>
+      <div class="tile g"><div class="label" id="sGLabel">Bu ay gelen</div><div class="val num" id="sG"></div></div>
+      <div class="tile r"><div class="label" id="sRLabel">Bu ay giden</div><div class="val num" id="sR"></div>
+        <div class="bar" title="Gelirin ne kadarı harcandı"><span id="sBar"></span></div></div>
+      <div class="tile"><div class="label">Kalan</div><div class="val num" id="sBal"></div><div class="hint" id="sPct"></div></div>
+    </div>
+
+    <div class="actions">
+      <button class="btn btn-green" id="addGelir"><span class="sign">+</span> Gelir Ekle</button>
+      <button class="btn btn-red" id="addGider"><span class="sign">−</span> Gider Ekle</button>
+      <button class="btn btn-amber" id="addFatura"><span class="sign">🧾</span> Fatura Ekle</button>
+    </div>
+
+    <div class="main">
+      <aside class="panel">
+        <div class="cal-head">
+          <button class="icon-btn" id="prevM" aria-label="Önceki ay">‹</button>
+          <h2 id="calTitle"></h2>
+          <button class="icon-btn" id="nextM" aria-label="Sonraki ay">›</button>
+        </div>
+        <div class="cal" id="cal"></div>
+        <div class="legend">
+          <span><i style="background:var(--gelir)"></i>Gelir</span>
+          <span><i style="background:var(--gider)"></i>Gider</span>
+          <span><i style="background:var(--fatura);border-radius:1px"></i>Ödenmemiş fatura</span>
+        </div>
+        <div class="date-pick">
+          <label class="label" for="datePick">Tarih</label>
+          <input type="date" id="datePick">
+          <button class="btn btn-ghost btn-sm" id="todayBtn">Bugün</button>
+        </div>
+      </aside>
+
+      <section class="panel">
+        <div class="day-head"><h2 id="dayTitle"></h2><span class="label" id="dayCount"></span></div>
+        <div class="day-totals">
+          <div class="dt g"><div class="label">Gelir</div><div class="v num" id="dG"></div></div>
+          <div class="dt r"><div class="label">Gider</div><div class="v num" id="dR"></div></div>
+          <div class="dt n"><div class="label">Günün farkı</div><div class="v num" id="dN"></div></div>
+        </div>
+        <div class="due-note" id="dueNote" hidden></div>
+        <ul class="list" id="list"></ul>
+      </section>
+    </div>
+
+    <section class="panel">
+      <div class="day-head"><h2 id="billTitle">Faturalar</h2><button class="btn btn-amber btn-sm" id="addFatura2">+ Fatura Ekle</button></div>
+      <div class="bill-totals" id="billTotals"></div>
+      <ul class="list" id="billList"></ul>
+    </section>
+  </section>
+</div>
+
+<!-- Gelir / gider ekleme -->
+<div class="overlay" id="entryOv" hidden>
+  <form class="modal stack" id="entryForm" novalidate>
+    <h3 id="mTitle">Gelir Ekle</h3>
+    <div class="field"><label for="eAmount">Tutar (₺)</label><input id="eAmount" type="number" inputmode="decimal" min="0" step="0.01" required></div>
+    <div class="field"><label for="eDesc">Açıklama</label><input id="eDesc" placeholder="örn. Market alışverişi" maxlength="60"></div>
+    <div class="row2">
+      <div class="field"><label for="eCat">Kategori</label><select id="eCat"></select></div>
+      <div class="field"><label for="eDate">Tarih</label><input id="eDate" type="date" required></div>
+    </div>
+    <p class="err" id="eErr"></p>
+    <div class="row2">
+      <button type="button" class="btn btn-ghost" data-close>Vazgeç</button>
+      <button type="submit" class="btn" id="mSave">Kaydet</button>
+    </div>
+  </form>
+</div>
+
+<!-- Fatura ekleme -->
+<div class="overlay" id="billOv" hidden>
+  <form class="modal fatura stack" id="billForm" novalidate>
+    <h3>🧾 Fatura Ekle</h3>
+    <div class="row2">
+      <div class="field"><label for="bType">Fatura türü</label>
+        <select id="bType">
+          <option>Elektrik</option><option>Su</option><option>Doğalgaz</option><option>İnternet</option>
+          <option>Telefon</option><option>Kira</option><option>Aidat</option><option>Kredi kartı</option><option>Diğer</option>
+        </select></div>
+      <div class="field"><label for="bAmount">Tutar (₺)</label><input id="bAmount" type="number" inputmode="decimal" min="0" step="0.01" required></div>
+    </div>
+    <div class="field"><label for="bName">Fatura adı (isteğe bağlı)</label><input id="bName" maxlength="40" placeholder="örn. Ev elektriği"></div>
+    <div class="field"><label for="bDue">Son ödeme tarihi</label><input id="bDue" type="date" required></div>
+    <label class="check"><input type="checkbox" id="bRec" checked> Her ay tekrarlansın</label>
+    <label class="check"><input type="checkbox" id="bPaid"> Bu ayki faturayı ödedim (gider olarak ekle)</label>
+    <p class="err" id="bErr"></p>
+    <div class="row2">
+      <button type="button" class="btn btn-ghost" data-close>Vazgeç</button>
+      <button type="submit" class="btn btn-amber">Faturayı Kaydet</button>
+    </div>
+  </form>
+</div>
+
+<!-- Telefona ekleme -->
+<div class="overlay" id="phoneOv" hidden>
+  <div class="modal stack" role="dialog" aria-labelledby="phTitle">
+    <h3 id="phTitle">📱 Telefona Ekle</h3>
+    <p style="margin:0">Cüzdanım’ı ana ekranına ekle, uygulama gibi tek dokunuşla aç.</p>
+    <div class="tabs" role="tablist" style="margin:0">
+      <button id="phIos" role="tab" aria-selected="true">iPhone</button>
+      <button id="phAnd" role="tab" aria-selected="false">Android</button>
+    </div>
+    <ol class="steps" id="stepsIos">
+      <li>Bu sayfanın bağlantısını telefonunda <b>Safari</b> ile aç.</li>
+      <li>Alttaki <span class="key">Paylaş ⬆︎</span> düğmesine dokun.</li>
+      <li>Listeden <b>Ana Ekrana Ekle</b> seçeneğini bul.</li>
+      <li>Adını “Cüzdanım” yap ve <b>Ekle</b>’ye dokun.</li>
+    </ol>
+    <ol class="steps" id="stepsAnd" hidden>
+      <li>Bu sayfanın bağlantısını telefonunda <b>Chrome</b> ile aç.</li>
+      <li>Sağ üstteki <span class="key">⋮</span> menüsüne dokun.</li>
+      <li><b>Ana ekrana ekle</b> seçeneğine dokun.</li>
+      <li>Adını “Cüzdanım” yap ve <b>Ekle</b>’ye dokun.</li>
+    </ol>
+    <p class="phone-note">Kayıtların hangi tarayıcıda girdiysen orada saklanır. Telefonda kullanacaksan hesabını telefondaki tarayıcıda oluştur.</p>
+    <button type="button" class="btn btn-main" data-close>Tamam</button>
+  </div>
+</div>
+
+<!-- Profil düzenleme -->
+<div class="overlay" id="profOv" hidden>
+  <div class="modal stack" role="dialog" aria-labelledby="pfTitle">
+    <h3 id="pfTitle">✏️ Profili Düzenle</h3>
+    <form id="profForm" class="stack" novalidate>
+      <div class="field"><label for="pUser">Kullanıcı adı</label><input id="pUser" autocomplete="username" required></div>
+      <div class="field"><label for="pPurpose">Kullanım amacı</label>
+        <select id="pPurpose">
+          <option>Kişisel bütçe</option><option>Ev ve aile bütçesi</option><option>Öğrenci harçlığı</option>
+          <option>Küçük işletme / esnaf</option><option>Birikim yapmak</option><option>Diğer</option>
+        </select></div>
+      <div class="field"><label for="pIncome">Aylık gelir (₺)</label><input id="pIncome" type="number" inputmode="decimal" min="0" step="0.01" required></div>
+      <p class="err" id="pErr"></p>
+      <button type="submit" class="btn btn-main">Bilgileri Kaydet</button>
+    </form>
+    <form id="passForm" class="sect" novalidate>
+      <h4>Şifreyi değiştir</h4>
+      <div class="field"><label for="pOld">Mevcut şifre</label><input id="pOld" type="password" autocomplete="current-password"></div>
+      <div class="field"><label for="pNew">Yeni şifre</label><input id="pNew" type="password" autocomplete="new-password"><span class="hint">En az 4 karakter</span></div>
+      <div class="field"><label for="pNew2">Yeni şifre (tekrar)</label><input id="pNew2" type="password" autocomplete="new-password"></div>
+      <p class="err" id="pwErr"></p><p class="ok-msg" id="pwOk"></p>
+      <button type="submit" class="btn btn-ghost">Şifreyi Değiştir</button>
+    </form>
+    <div class="sect">
+      <h4>Hesabı sil</h4>
+      <p class="hint" style="margin:0">Tüm gelir, gider ve fatura kayıtların bu tarayıcıdan kalıcı olarak silinir.</p>
+      <div id="delArea"><button type="button" class="btn danger" id="delAcc">Hesabımı Sil</button></div>
+    </div>
+    <button type="button" class="btn btn-ghost" data-close>Kapat</button>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script>
+(function(){
+const $=id=>document.getElementById(id);
+const CATS={gelir:["Maaş","Ek iş","Harçlık","Satış","Kira geliri","Diğer"],
+            gider:["Market","Fatura","Kira","Ulaşım","Yemek","Eğitim","Sağlık","Eğlence","Giyim","Diğer"]};
+const BILL_ICON={"Elektrik":"⚡","Su":"💧","Doğalgaz":"🔥","İnternet":"🌐","Telefon":"📞","Kira":"🏠","Aidat":"🏢","Kredi kartı":"💳","Diğer":"🧾"};
+const TL=new Intl.NumberFormat("tr-TR",{style:"currency",currency:"TRY",maximumFractionDigits:2});
+const fmt=n=>TL.format(n||0);
+const AYLAR=["Ocak","Şubat","Mart","Nisan","Mayıs","Haziran","Temmuz","Ağustos","Eylül","Ekim","Kasım","Aralık"];
+const pad=n=>String(n).padStart(2,"0");
+const iso=d=>d.getFullYear()+"-"+pad(d.getMonth()+1)+"-"+pad(d.getDate());
+const parseISO=s=>{const [y,m,d]=s.split("-").map(Number);return new Date(y,m-1,d)};
+const ymOf=d=>d.getFullYear()+"-"+pad(d.getMonth()+1);
+const uid=()=>"x"+Date.now().toString(36)+Math.random().toString(36).slice(2,6);
+
+/* ---- Depolama (tarayıcıda) ---- */
+let mem={};
+function load(){try{const s=localStorage.getItem("cd_users");return s?JSON.parse(s):mem}catch(e){return mem}}
+function save(u){mem=u;try{localStorage.setItem("cd_users",JSON.stringify(u))}catch(e){}}
+function getSession(){try{return localStorage.getItem("cd_session")}catch(e){return null}}
+function setSession(v){try{v?localStorage.setItem("cd_session",v):localStorage.removeItem("cd_session")}catch(e){}}
+async function hash(s){
+  try{const b=await crypto.subtle.digest("SHA-256",new TextEncoder().encode("cd::"+s));
+    return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,"0")).join("")}
+  catch(e){let h=5381;for(const c of s)h=((h<<5)+h+c.charCodeAt(0))|0;return "h"+h}
+}
+
+let users=load(), me=null, sel=new Date(), view=new Date(), mType="gelir";
+const user=()=>users[me];
+
+/* ---- Giriş / Kayıt ---- */
+function tab(reg){$("tabLogin").setAttribute("aria-selected",!reg);$("tabReg").setAttribute("aria-selected",reg);
+  $("loginForm").hidden=reg;$("regForm").hidden=!reg;$("lErr").textContent=$("rErr").textContent=""}
+$("tabLogin").onclick=()=>tab(false);$("tabReg").onclick=()=>tab(true);
+
+$("regForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const u=$("rUser").value.trim(), p=$("rPass").value, pur=$("rPurpose").value, inc=parseFloat($("rIncome").value);
+  const err=$("rErr");
+  if(u.length<3) return err.textContent="Kullanıcı adı en az 3 karakter olmalı.";
+  if(p.length<4) return err.textContent="Şifre en az 4 karakter olmalı.";
+  if(!pur) return err.textContent="Lütfen kullanım amacını seç.";
+  if(!(inc>=0)) return err.textContent="Aylık gelirini rakamla yaz.";
+  users=load();
+  if(users[u.toLowerCase()]) return err.textContent="Bu kullanıcı adı alınmış, başka bir ad dene.";
+  users[u.toLowerCase()]={name:u,pass:await hash(p),purpose:pur,income:inc,entries:[],bills:[]};
+  save(users); toast("Kayıt tamam. Hoş geldin, "+u+"!"); enter(u.toLowerCase());
+});
+
+$("loginForm").addEventListener("submit",async e=>{
+  e.preventDefault();
+  const u=$("lUser").value.trim().toLowerCase(), p=$("lPass").value;
+  users=load();
+  if(!u||!p) return $("lErr").textContent="Kullanıcı adı ve şifreyi yaz.";
+  if(!users[u]||users[u].pass!==await hash(p)) return $("lErr").textContent="Kullanıcı adı ya da şifre yanlış.";
+  enter(u);
+});
+
+$("demoBtn").onclick=async()=>{
+  users=load();
+  const t=new Date(), Y=t.getFullYear(), M=t.getMonth(), d=n=>iso(new Date(Y,M,n)), ym=ymOf(t), td=t.getDate();
+  const ex=[["gelir",28000,"Maaş","Maaş",1],["gider",9500,"Ev kirası","Kira",2],["gider",1240,"Haftalık market","Market",3],
+    ["gider",680,"Elektrik faturası","Fatura",5],["gider",420,"Akbil yükleme","Ulaşım",6],["gelir",3500,"Özel ders","Ek iş",8],
+    ["gider",350,"Sinema","Eğlence",10],["gider",1580,"Market","Market",12],["gider",290,"İnternet faturası","Fatura",14]]
+    .filter(r=>r[4]<=td);
+  ex.push(["gider",185,"Öğle yemeği","Yemek",td],["gelir",750,"İkinci el satış","Satış",td]);
+  const entries=ex.map((r,i)=>({id:"e"+i,type:r[0],amount:r[1],desc:r[2],cat:r[3],date:d(r[4])}));
+  const idOf=desc=>{const x=entries.find(e=>e.desc===desc);return x?x.id:null};
+  const mk=(type,amount,day,paidDesc)=>{const b={id:uid(),type,name:type,amount,due:d(day),recurring:true,paid:{}};
+    const pid=paidDesc&&idOf(paidDesc); if(pid) b.paid[ym]=pid; return b};
+  const dim=new Date(Y,M+1,0).getDate();
+  const bills=[mk("Elektrik",680,5,"Elektrik faturası"),mk("İnternet",290,14,"İnternet faturası"),
+    mk("Su",340,Math.min(dim,td+2)),mk("Doğalgaz",1150,Math.min(dim,26)),mk("Telefon",450,Math.max(1,td-3))];
+  users["ornek"]={name:"ornek",pass:await hash("1234"),purpose:"Kişisel bütçe",income:28000,entries,bills};
+  save(users); toast("Örnek hesap: kullanıcı adı “ornek”, şifre “1234”"); enter("ornek");
+};
+
+function enter(u){me=u;setSession(u);const U=user();U.bills=U.bills||[];U.entries=U.entries||[];
+  sel=new Date();view=new Date(sel);
+  $("authView").hidden=true;$("appView").hidden=false;$("loginForm").reset();$("regForm").reset();render()}
+$("logoutBtn").onclick=()=>{me=null;setSession(null);$("appView").hidden=true;$("authView").hidden=false;tab(false)};
+
+/* ---- Fatura hesapları ---- */
+function billsFor(ym){
+  const [Y,M]=ym.split("-").map(Number), dim=new Date(Y,M,0).getDate();
+  return user().bills.filter(b=>{const bym=b.due.slice(0,7);return b.recurring?bym<=ym:bym===ym})
+    .map(b=>({b,due:ym+"-"+pad(Math.min(+b.due.slice(8),dim)),paid:b.paid&&b.paid[ym]}))
+    .sort((a,b)=>a.due<b.due?-1:1);
+}
+function status(due,paid){
+  if(paid) return ["Ödendi","ok"];
+  const today=iso(new Date());
+  if(due<today) return ["Gecikti","late"];
+  const diff=Math.round((parseISO(due)-parseISO(today))/864e5);
+  if(diff===0) return ["Son gün bugün","soon"];
+  if(diff<=3) return [diff+" gün kaldı","soon"];
+  return ["Bekliyor","wait"];
+}
+const billLabel=b=>b.name&&b.name!==b.type?b.name:b.type+" faturası";
+
+/* ---- Görünüm ---- */
+function render(){
+  const U=user(); if(!U) return;
+  $("whoName").textContent="👤 "+U.name; $("whoPurpose").textContent=U.purpose;
+  const ym=ymOf(view);
+  const mon=U.entries.filter(e=>e.date.startsWith(ym));
+  const g=mon.filter(e=>e.type==="gelir").reduce((a,e)=>a+e.amount,0);
+  const r=mon.filter(e=>e.type==="gider").reduce((a,e)=>a+e.amount,0);
+  const ay=AYLAR[view.getMonth()];
+  $("sIncome").textContent=fmt(U.income);
+  $("sGLabel").textContent=ay+" gelen"; $("sRLabel").textContent=ay+" giden";
+  $("sG").textContent=fmt(g); $("sR").textContent=fmt(r);
+  const bal=g-r; $("sBal").textContent=fmt(bal); $("sBal").style.color=bal<0?"var(--gider)":"var(--ink)";
+  const base=Math.max(g,U.income)||1, pct=Math.min(100,Math.round(r/base*100));
+  $("sBar").style.width=pct+"%"; $("sPct").textContent="Gelirin %"+pct+"’i harcandı";
+  renderCal(); renderDay(); renderBills();
+}
+
+function renderCal(){
+  const U=user(), Y=view.getFullYear(), M=view.getMonth();
+  $("calTitle").textContent=AYLAR[M]+" "+Y;
+  const first=new Date(Y,M,1), offset=(first.getDay()+6)%7, days=new Date(Y,M+1,0).getDate();
+  const byDay={}; U.entries.forEach(e=>{(byDay[e.date]=byDay[e.date]||{})[e.type==="gelir"?"g":"r"]=1});
+  billsFor(ymOf(view)).forEach(x=>{if(!x.paid)(byDay[x.due]=byDay[x.due]||{}).b=1});
+  let h=["Pt","Sa","Ça","Pe","Cu","Ct","Pz"].map(x=>`<div class="dow">${x}</div>`).join("");
+  for(let i=0;i<offset;i++) h+="<div></div>";
+  const today=iso(new Date()), s=iso(sel);
+  for(let d=1;d<=days;d++){
+    const k=Y+"-"+pad(M+1)+"-"+pad(d), b=byDay[k]||{};
+    h+=`<button class="day${k===today?" today":""}${k===s?" sel":""}" data-d="${k}" aria-label="${d} ${AYLAR[M]}">${d}
+      <span class="dots">${b.g?'<i class="dg"></i>':""}${b.r?'<i class="dr"></i>':""}${b.b?'<i class="db"></i>':""}</span></button>`;
+  }
+  $("cal").innerHTML=h;
+  $("datePick").value=iso(sel);
+}
+$("cal").addEventListener("click",e=>{const b=e.target.closest(".day");if(!b)return;sel=parseISO(b.dataset.d);render()});
+$("prevM").onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()-1,1);render()};
+$("nextM").onclick=()=>{view=new Date(view.getFullYear(),view.getMonth()+1,1);render()};
+$("datePick").onchange=e=>{if(!e.target.value)return;sel=parseISO(e.target.value);view=new Date(sel);render()};
+$("todayBtn").onclick=()=>{sel=new Date();view=new Date();render()};
+
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]))}
+function renderDay(){
+  const U=user(), k=iso(sel);
+  const items=U.entries.filter(e=>e.date===k).sort((a,b)=>a.type===b.type?0:a.type==="gelir"?-1:1);
+  $("dayTitle").textContent=sel.toLocaleDateString("tr-TR",{day:"numeric",month:"long",year:"numeric",weekday:"long"});
+  $("dayCount").textContent=items.length+" kayıt";
+  const g=items.filter(e=>e.type==="gelir").reduce((a,e)=>a+e.amount,0);
+  const r=items.filter(e=>e.type==="gider").reduce((a,e)=>a+e.amount,0);
+  $("dG").textContent=fmt(g); $("dR").textContent=fmt(r);
+  $("dN").textContent=(g-r>0?"+":"")+fmt(g-r); $("dN").style.color=g-r<0?"var(--gider)":g-r>0?"var(--gelir)":"var(--ink)";
+  const due=billsFor(ymOf(sel)).filter(x=>x.due===k&&!x.paid);
+  $("dueNote").hidden=!due.length;
+  if(due.length) $("dueNote").innerHTML="🧾 Bu gün son ödeme: "+due.map(x=>`<b>${esc(billLabel(x.b))}</b> <span class="num">${fmt(x.b.amount)}</span>`).join(", ");
+  $("list").innerHTML=items.length?items.map(e=>`
+    <li class="item ${e.type}" data-id="${e.id}">
+      <span class="stripe"></span>
+      <span class="desc"><b>${esc(e.desc||e.cat)}</b><small>${esc(e.cat)} · ${e.type==="gelir"?"Gelir":"Gider"}</small></span>
+      <span class="amt num">${e.type==="gelir"?"+":"−"}${fmt(e.amount)}</span>
+      <span class="act"><button class="del" aria-label="Kaydı sil" title="Sil">×</button></span>
+    </li>`).join("")
+    :`<li class="empty"><b>Bu günde kayıt yok</b>Yeşil butonla gelir, kırmızı butonla gider ekleyebilirsin.</li>`;
+}
+$("list").addEventListener("click",e=>{
+  const li=e.target.closest(".item"); if(!li) return;
+  const act=li.querySelector(".act");
+  if(e.target.classList.contains("del")){
+    act.innerHTML='<span class="confirm"><button class="yes">Sil</button><button class="no">Vazgeç</button></span>';
+  }else if(e.target.classList.contains("yes")){
+    removeEntry(li.dataset.id); save(users); toast("Kayıt silindi"); render();
+  }else if(e.target.classList.contains("no")){ renderDay(); }
+});
+function removeEntry(id){
+  const U=user(); U.entries=U.entries.filter(x=>x.id!==id);
+  U.bills.forEach(b=>{for(const k in b.paid) if(b.paid[k]===id) delete b.paid[k]});
+}
+
+function renderBills(){
+  const ym=ymOf(view), list=billsFor(ym);
+  $("billTitle").textContent="Faturalar · "+AYLAR[view.getMonth()]+" "+view.getFullYear();
+  const tot=list.reduce((a,x)=>a+x.b.amount,0), paid=list.filter(x=>x.paid).reduce((a,x)=>a+x.b.amount,0);
+  const late=list.filter(x=>status(x.due,x.paid)[1]==="late").length;
+  $("billTotals").innerHTML=list.length?`<span class="chip">Toplam <b>${fmt(tot)}</b></span>
+    <span class="chip">Ödenen <b style="color:var(--gelir)">${fmt(paid)}</b></span>
+    <span class="chip">Kalan <b style="color:var(--fatura)">${fmt(tot-paid)}</b></span>
+    ${late?`<span class="chip" style="color:var(--gider)">${late} fatura gecikti</span>`:""}`:"";
+  $("billList").innerHTML=list.length?list.map(x=>{
+    const [st,cls]=status(x.due,x.paid), b=x.b;
+    return `<li class="item fatura" data-bill="${b.id}">
+      <span class="stripe"></span>
+      <span class="desc"><b>${BILL_ICON[b.type]||"🧾"} ${esc(billLabel(b))}<span class="pill ${cls}">${st}</span></b>
+        <small>Son ödeme: ${parseISO(x.due).toLocaleDateString("tr-TR",{day:"numeric",month:"long"})}${b.recurring?" · her ay":" · tek sefer"}</small></span>
+      <span class="amt num">${fmt(b.amount)}</span>
+      <span class="act">${x.paid?'<button class="undo">Ödemeyi geri al</button>':'<button class="pay">Öde</button>'}
+        <button class="del" aria-label="Faturayı sil" title="Faturayı sil">×</button></span>
+    </li>`}).join("")
+    :`<li class="empty"><b>Bu ay için fatura yok</b>Elektrik, su, doğalgaz gibi faturalarını “Fatura Ekle” ile kaydet; son ödeme günü yaklaşınca burada görürsün.</li>`;
+}
+$("billList").addEventListener("click",e=>{
+  const li=e.target.closest(".item"); if(!li) return;
+  const U=user(), b=U.bills.find(x=>x.id===li.dataset.bill), ym=ymOf(view), t=e.target;
+  if(!b) return;
+  if(t.classList.contains("pay")){
+    payBill(b,ym); save(users); toast(billLabel(b)+" ödendi, gider olarak eklendi"); render();
+  }else if(t.classList.contains("undo")){
+    removeEntry(b.paid[ym]); delete b.paid[ym]; save(users); toast("Ödeme geri alındı"); render();
+  }else if(t.classList.contains("del")){
+    li.querySelector(".act").innerHTML='<span class="confirm"><button class="yes">Faturayı sil</button><button class="no">Vazgeç</button></span>';
+  }else if(t.classList.contains("yes")){
+    U.bills=U.bills.filter(x=>x.id!==b.id); save(users); toast("Fatura silindi (ödenmiş giderler duruyor)"); render();
+  }else if(t.classList.contains("no")){ renderBills(); }
+});
+function payBill(b,ym){
+  const today=new Date(), date=ymOf(today)===ym?iso(today):billsFor(ym).find(x=>x.b===b).due;
+  const id=uid();
+  user().entries.push({id,type:"gider",amount:b.amount,desc:billLabel(b),cat:"Fatura",date});
+  b.paid=b.paid||{}; b.paid[ym]=id;
+}
+
+/* ---- Pencereler ---- */
+function openOv(id){$(id).hidden=false}
+function closeAll(){document.querySelectorAll(".overlay").forEach(o=>o.hidden=true)}
+document.querySelectorAll(".overlay").forEach(o=>o.addEventListener("click",e=>{if(e.target===o||e.target.hasAttribute("data-close"))closeAll()}));
+document.addEventListener("keydown",e=>{if(e.key==="Escape")closeAll()});
+
+function openEntry(type){
+  mType=type;
+  $("entryForm").className="modal stack "+type;
+  $("mTitle").textContent=type==="gelir"?"Gelir Ekle":"Gider Ekle";
+  $("mSave").className="btn "+(type==="gelir"?"btn-green":"btn-red");
+  $("eCat").innerHTML=CATS[type].map(c=>`<option>${c}</option>`).join("");
+  $("eDesc").placeholder=type==="gelir"?"örn. Ekim maaşı":"örn. Market alışverişi";
+  $("eAmount").value="";$("eDesc").value="";$("eErr").textContent="";
+  $("eDate").value=iso(sel);
+  openOv("entryOv"); setTimeout(()=>$("eAmount").focus(),30);
+}
+$("addGelir").onclick=()=>openEntry("gelir");
+$("addGider").onclick=()=>openEntry("gider");
+$("entryForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const amt=parseFloat($("eAmount").value), date=$("eDate").value;
+  if(!(amt>0)) return $("eErr").textContent="Tutarı sıfırdan büyük bir sayı olarak yaz.";
+  if(!date) return $("eErr").textContent="Bir tarih seç.";
+  user().entries.push({id:uid(),type:mType,amount:Math.round(amt*100)/100,desc:$("eDesc").value.trim(),cat:$("eCat").value,date});
+  save(users); closeAll(); sel=parseISO(date); view=new Date(sel);
+  toast((mType==="gelir"?"Gelir":"Gider")+" eklendi: "+fmt(amt)); render();
+});
+
+function openBill(){
+  $("billForm").reset(); $("bErr").textContent=""; $("bRec").checked=true;
+  $("bDue").value=iso(sel); openOv("billOv"); setTimeout(()=>$("bAmount").focus(),30);
+}
+$("addFatura").onclick=openBill; $("addFatura2").onclick=openBill;
+$("billForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const amt=parseFloat($("bAmount").value), due=$("bDue").value;
+  if(!(amt>0)) return $("bErr").textContent="Fatura tutarını sıfırdan büyük bir sayı olarak yaz.";
+  if(!due) return $("bErr").textContent="Son ödeme tarihini seç.";
+  const type=$("bType").value;
+  const b={id:uid(),type,name:$("bName").value.trim()||type,amount:Math.round(amt*100)/100,due,recurring:$("bRec").checked,paid:{}};
+  user().bills.push(b);
+  view=parseISO(due); sel=parseISO(due);
+  if($("bPaid").checked) payBill(b,due.slice(0,7));
+  save(users); closeAll(); toast(billLabel(b)+" kaydedildi"); render();
+});
+
+/* Telefona ekle */
+function phoneTab(ios){$("phIos").setAttribute("aria-selected",ios);$("phAnd").setAttribute("aria-selected",!ios);
+  $("stepsIos").hidden=!ios;$("stepsAnd").hidden=ios}
+$("phIos").onclick=()=>phoneTab(true); $("phAnd").onclick=()=>phoneTab(false);
+function openPhone(){const ua=navigator.userAgent||"";phoneTab(!/Android/i.test(ua));openOv("phoneOv")}
+$("phoneBtn1").onclick=openPhone; $("phoneBtn2").onclick=openPhone;
+
+/* ---- Profil düzenleme ---- */
+function openProfile(){
+  const U=user();
+  $("pUser").value=U.name; $("pPurpose").value=U.purpose; $("pIncome").value=U.income;
+  ["pErr","pwErr","pwOk"].forEach(i=>$(i).textContent=""); $("passForm").reset();
+  $("delArea").innerHTML='<button type="button" class="btn danger" id="delAcc">Hesabımı Sil</button>';
+  openOv("profOv");
+}
+$("profileBtn").onclick=openProfile; $("whoName").onclick=openProfile;
+$("profForm").addEventListener("submit",e=>{
+  e.preventDefault();
+  const n=$("pUser").value.trim(), inc=parseFloat($("pIncome").value), key=n.toLowerCase();
+  if(n.length<3) return $("pErr").textContent="Kullanıcı adı en az 3 karakter olmalı.";
+  if(!(inc>=0)) return $("pErr").textContent="Aylık geliri rakamla yaz.";
+  if(key!==me&&users[key]) return $("pErr").textContent="Bu kullanıcı adı alınmış, başka bir ad dene.";
+  const U=user(); U.name=n; U.purpose=$("pPurpose").value; U.income=Math.round(inc*100)/100;
+  if(key!==me){users[key]=U; delete users[me]; me=key; setSession(key)}
+  save(users); closeAll(); toast("Profil güncellendi"); render();
+});
+$("passForm").addEventListener("submit",async e=>{
+  e.preventDefault(); $("pwErr").textContent=$("pwOk").textContent="";
+  const o=$("pOld").value, n=$("pNew").value, n2=$("pNew2").value;
+  if(user().pass!==await hash(o)) return $("pwErr").textContent="Mevcut şifre yanlış.";
+  if(n.length<4) return $("pwErr").textContent="Yeni şifre en az 4 karakter olmalı.";
+  if(n!==n2) return $("pwErr").textContent="Yeni şifreler birbirini tutmuyor.";
+  user().pass=await hash(n); save(users); $("passForm").reset(); $("pwOk").textContent="Şifren değiştirildi.";
+});
+$("delArea").addEventListener("click",e=>{
+  if(e.target.id==="delAcc"){
+    $("delArea").innerHTML='<p class="err" style="margin:0 0 8px">Emin misin? Bu işlem geri alınamaz.</p><div class="row2"><button type="button" class="btn btn-ghost" id="delNo">Vazgeç</button><button type="button" class="btn btn-red" id="delYes">Evet, sil</button></div>';
+  }else if(e.target.id==="delNo"){
+    $("delArea").innerHTML='<button type="button" class="btn danger" id="delAcc">Hesabımı Sil</button>';
+  }else if(e.target.id==="delYes"){
+    delete users[me]; save(users); closeAll(); me=null; setSession(null);
+    $("appView").hidden=true; $("authView").hidden=false; tab(false); toast("Hesabın silindi");
+  }
+});
+
+let tt; function toast(t){const el=$("toast");el.textContent=t;el.hidden=false;clearTimeout(tt);tt=setTimeout(()=>el.hidden=true,2600)}
+
+/* ---- Arka plan: gelir-gider deseni ---- */
+const cv=$("bgCanvas"), cx=cv.getContext("2d");
+function drawBg(){
+  const dpr=window.devicePixelRatio||1, w=innerWidth, h=innerHeight;
+  cv.width=w*dpr; cv.height=h*dpr; cx.setTransform(dpr,0,0,dpr,0,0); cx.clearRect(0,0,w,h);
+  const cs=getComputedStyle(document.documentElement), ga=cs.getPropertyValue("--pattern-a"), rb=cs.getPropertyValue("--pattern-b");
+  cx.strokeStyle=ga; cx.lineWidth=1;
+  for(let y=40;y<h;y+=32){cx.beginPath();cx.moveTo(0,y);cx.lineTo(w,y);cx.stroke()}
+  const wave=(col,up)=>{cx.strokeStyle=col;cx.lineWidth=3;cx.beginPath();
+    for(let x=0;x<=w;x+=20){const t=x/w;const y=h*(up?0.85-0.55*t:0.25+0.55*t)+Math.sin(x/55+(up?0:2))*22;x?cx.lineTo(x,y):cx.moveTo(x,y)}cx.stroke()};
+  wave(ga,true); wave(rb,false);
+  const sym=["₺","+","−","↑","↓","₺"]; let seed=7; const rnd=()=>(seed=(seed*9301+49297)%233280)/233280;
+  cx.textAlign="center"; cx.textBaseline="middle";
+  for(let y=30;y<h+40;y+=96) for(let x=30+(y/96%2)*60;x<w+40;x+=120){
+    const s=sym[Math.floor(rnd()*sym.length)], green=s==="+"||s==="↑"||(s==="₺"&&rnd()>.5);
+    cx.fillStyle=green?ga:rb; cx.font=`700 ${22+rnd()*18}px "JetBrains Mono",monospace`;
+    cx.save();cx.translate(x,y);cx.rotate((rnd()-.5)*.5);cx.fillText(s,0,0);cx.restore();
+  }
+}
+drawBg(); addEventListener("resize",drawBg);
+try{matchMedia("(prefers-color-scheme: dark)").addEventListener("change",drawBg)}catch(e){}
+new MutationObserver(drawBg).observe(document.documentElement,{attributes:true,attributeFilter:["data-theme"]});
+document.fonts&&document.fonts.ready.then(drawBg);
+
+const s=getSession(); if(s&&users[s]) enter(s);
+})();
+</script>
+
+</body></html>
